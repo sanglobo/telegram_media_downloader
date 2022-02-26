@@ -19,7 +19,7 @@
 </h3>
 
 ### Overview:
-Download all media files from a conversation or a channel that you are a part of from telegram.
+Download all media files from all conversations or channels that you are a part of from telegram.
 A meta of last read/downloaded message is stored in the config file so that in such a way it won't download the same media file again.
 
 ### Support:
@@ -27,9 +27,6 @@ A meta of last read/downloaded message is stored in the config file so that in s
 |--|--|
 |Language | `Python 3.6 ` and above|
 |Download media types|  audio, document, photo, video, video_note, voice|
-
-### ToDo:
-- Add support for multiple channels/chats.
 
 ### Installation
 
@@ -56,32 +53,11 @@ The very first step requires you to obtain a valid Telegram API key (API id/hash
 2.  Fill out the form to register a new Telegram application. 
 3.  Done! The API key consists of two parts:  **api_id**  and  **api_hash**.
 
-
-**Getting chat id:**
-
-**1. Using web telegram:**
-1. Open https://web.telegram.org/?legacy=1#/im
-2. Now go to the chat/channel and you will see the URL as something like
-	- `https://web.telegram.org/?legacy=1#/im?p=u853521067_2449618633394` here `853521067` is the chat id.
-	- `https://web.telegram.org/?legacy=1#/im?p=@somename` here `somename` is the chat id.
-	- `https://web.telegram.org/?legacy=1#/im?p=s1301254321_6925449697188775560` here take `1301254321` and add `-100` to the start of the id => `-1001301254321`.
-	- `https://web.telegram.org/?legacy=1#/im?p=c1301254321_6925449697188775560` here take `1301254321` and add `-100` to the start of the id => `-1001301254321`.
-
-
-**2. Using bot:**
-1. Use [@username_to_id_bot](https://t.me/username_to_id_bot) to get the chat_id of
-    - almost any telegram user: send username to the bot or just forward their message to the bot
-    - any chat: send chat username or copy and send its joinchat link to the bot
-    - public or private channel: same as chats, just copy and send to the bot
-    - id of any telegram bot
-
-
 ### config.yaml
 ```yaml
 api_hash: your_api_hash
 api_id: your_api_id
-chat_id: telegram_chat_id
-last_read_message_id: 0
+last_read_message_id: []
 ids_to_retry: []
 media_types:
 - audio
@@ -101,7 +77,6 @@ file_formats:
 
 - api_hash  - The api_hash you got from telegram apps
 - api_id - The api_id you got from telegram apps
-- chat_id -  The id of the chat/channel you want to download media. Which you get from the above-mentioned steps.
 - last_read_message_id - If it is the first time you are going to read the channel let it be `0` or if you have already used this script to download media it will have some numbers which are auto-updated after the scripts successful execution. Don't change it.
 - ids_to_retry - `Leave it as it is.` This is used by the downloader script to keep track of all skipped downloads so that it can be downloaded during the next execution of the script.
 - media_types - Type of media to download, you can update which type of media you want to download it can be one or any of the available types.
@@ -111,7 +86,7 @@ file_formats:
 ```sh
 $ python3 media_downloader.py
 ```
-All the downloaded media will be stored inside  respective direcotry named  in the same path as the python script.
+All the downloaded media will be stored inside  respective directory named  in the same path as the python script.
 
 | Media type | Download directory |
 |--|--|

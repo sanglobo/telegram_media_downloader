@@ -4,9 +4,12 @@ import logging
 import os
 from datetime import datetime as dt
 from typing import List, Optional, Tuple, Union
-
+import zc.lockfile
 import pyrogram
 import yaml
+from pyrogram import errors
+from pyrogram.raw import functions
+from pyrogram.raw.base.messages import Chats
 from pyrogram.types import Audio, Document, Photo, Video, VideoNote, Voice
 from rich.logging import RichHandler
 
@@ -25,18 +28,18 @@ logging.getLogger("pyrogram.session.session").addFilter(LogFilter())
 logging.getLogger("pyrogram.client").addFilter(LogFilter())
 logger = logging.getLogger("media_downloader")
 
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))  # TODO: config override
 FAILED_IDS: list = []
 
 
 def update_config(config: dict):
     """
-    Update exisitng configuration file.
+    Update existing configuration file.
 
     Parameters
     ----------
     config: dict
-        Configuraiton to be written into config file.
+        Configuration to be written into config file.
     """
     config["ids_to_retry"] = list(set(config["ids_to_retry"] + FAILED_IDS))
     with open("config.yaml", "w") as yaml_file:
@@ -45,7 +48,7 @@ def update_config(config: dict):
 
 
 def _can_download(
-    _type: str, file_formats: dict, file_format: Optional[str]
+        _type: str, file_formats: dict, file_format: Optional[str]
 ) -> bool:
     """
     Check if the given file format can be downloaded.
@@ -91,8 +94,8 @@ def _is_exist(file_path: str) -> bool:
 
 
 async def _get_media_meta(
-    media_obj: Union[Audio, Document, Photo, Video, VideoNote, Voice],
-    _type: str,
+        media_obj: Union[Audio, Document, Photo, Video, VideoNote, Voice],
+        _type: str, chatId: str,
 ) -> Tuple[str, Optional[str]]:
     """Extract file name and file id from media object.
 
@@ -119,6 +122,7 @@ async def _get_media_meta(
         file_format = media_obj.mime_type.split("/")[-1]  # type: ignore
         file_name: str = os.path.join(
             THIS_DIR,
+            chatId,
             _type,
             "{}_{}.{}".format(
                 _type,
@@ -128,16 +132,16 @@ async def _get_media_meta(
         )
     else:
         file_name = os.path.join(
-            THIS_DIR, _type, getattr(media_obj, "file_name", None) or ""
+            THIS_DIR, chatId, _type, getattr(media_obj, "file_name", None) or ""
         )
     return file_name, file_format
 
 
 async def download_media(
-    client: pyrogram.client.Client,
-    message: pyrogram.types.Message,
-    media_types: List[str],
-    file_formats: dict,
+        client: pyrogram.client.Client,
+        message: pyrogram.types.Message,
+        media_types: List[str],
+        file_formats: dict,
 ):
     """
     Download media from Telegram.
@@ -150,7 +154,7 @@ async def download_media(
     client: pyrogram.client.Client
         Client to interact with Telegram APIs.
     message: pyrogram.types.Message
-        Message object retrived from telegram.
+        Message object retrieved from telegram.
     media_types: list
         List of strings of media types to be downloaded.
         Ex : `["audio", "photo"]`
@@ -178,7 +182,7 @@ async def download_media(
                 _media = getattr(message, _type, None)
                 if _media is None:
                     continue
-                file_name, file_format = await _get_media_meta(_media, _type)
+                file_name, file_format = await _get_media_meta(_media, _type, str(message.chat.id))
                 if _can_download(_type, file_formats, file_format):
                     if _is_exist(file_name):
                         file_name = get_next_name(file_name)
@@ -194,9 +198,9 @@ async def download_media(
                     if download_path:
                         logger.info("Media downloaded - %s", download_path)
             break
-        except pyrogram.errors.exceptions.bad_request_400.BadRequest:
+        except errors.exceptions.bad_request_400.BadRequest:
             logger.warning(
-                "Message[%d]: file reference expired, refetching...",
+                "Message[%d]: file reference expired, fetching...",
                 message.message_id,
             )
             message = await client.get_messages(  # type: ignore
@@ -213,7 +217,7 @@ async def download_media(
         except TypeError:
             # pylint: disable = C0301
             logger.warning(
-                "Timeout Error occured when downloading Message[%d], retrying after 5 seconds",
+                "Timeout Error occurred when downloading Message[%d], retrying after 5 seconds",
                 message.message_id,
             )
             await asyncio.sleep(5)
@@ -237,10 +241,10 @@ async def download_media(
 
 
 async def process_messages(
-    client: pyrogram.client.Client,
-    messages: List[pyrogram.types.Message],
-    media_types: List[str],
-    file_formats: dict,
+        client: pyrogram.client.Client,
+        messages: List[pyrogram.types.Message],
+        media_types: List[str],
+        file_formats: dict,
 ) -> int:
     """
     Download media from Telegram.
@@ -286,7 +290,7 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
     Create pyrogram client and initiate download.
 
     The pyrogram client is created using the ``api_id``, ``api_hash``
-    from the config and iter throught message offset on the
+    from the config and iter through message offset on the
     ``last_message_id`` and the requested file_formats.
 
     Parameters
@@ -299,7 +303,7 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
     Returns
     -------
     dict
-        Updated configuraiton to be written into config file.
+        Updated configuration to be written into config file.
     """
     client = pyrogram.Client(
         "media_downloader",
@@ -307,51 +311,62 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
         api_hash=config["api_hash"],
     )
     await client.start()
-    last_read_message_id: int = config["last_read_message_id"]
-    messages_iter = client.iter_history(
-        config["chat_id"],
-        offset_id=last_read_message_id,
-        reverse=True,
+    channels: Chats = await client.send(
+        functions.messages.GetAllChats(except_ids=[])
     )
-    pagination_count: int = 0
-    messages_list: list = []
+    lastMessageIds: dict = config["last_read_message_id"]
+    # force to dict
+    lastMessageIds = dict(lastMessageIds)
 
-    async for message in messages_iter:  # type: ignore
-        if pagination_count != pagination_limit:
-            pagination_count += 1
-            messages_list.append(message)
-        else:
+    for channel in channels.chats:
+        offset_id: int = 0
+        if str(channel.id) in lastMessageIds:
+            offset_id = lastMessageIds[str(channel.id)]
+        messages_iter = client.iter_history(
+            chat_id=channel.username,
+            offset_id=offset_id,
+            reverse=True,
+        )
+        pagination_count: int = 0
+        messages_list: list = []
+        async for message in messages_iter:
+            if pagination_count != pagination_limit:
+                pagination_count += 1
+                messages_list.append(message)
+            else:
+                last_read_message_id = await process_messages(
+                    client,
+                    messages_list,
+                    config["media_types"],
+                    config["file_formats"],
+                )
+                pagination_count = 0
+                messages_list = [message]
+                lastMessageIds.update({str(channel.id): last_read_message_id})
+                config["last_read_message_id"] = lastMessageIds
+                update_config(config)
+        if messages_list:
             last_read_message_id = await process_messages(
                 client,
                 messages_list,
                 config["media_types"],
                 config["file_formats"],
             )
-            pagination_count = 0
-            messages_list = []
-            messages_list.append(message)
-            config["last_read_message_id"] = last_read_message_id
-            update_config(config)
-    if messages_list:
-        last_read_message_id = await process_messages(
-            client,
-            messages_list,
-            config["media_types"],
-            config["file_formats"],
-        )
+            lastMessageIds.update({str(channel.id): last_read_message_id})
 
     await client.stop()
-    config["last_read_message_id"] = last_read_message_id
+    config["last_read_message_id"] = lastMessageIds
     return config
 
 
 def main():
+    zc.lockfile.LockFile('lock')
     """Main function of the downloader."""
     with open(os.path.join(THIS_DIR, "config.yaml")) as f:
         config = yaml.safe_load(f)
-    updated_config = asyncio.get_event_loop().run_until_complete(
-        begin_import(config, pagination_limit=100)
-    )
+        updated_config = asyncio.run(
+            begin_import(config, pagination_limit=100), debug=True
+        )
     if FAILED_IDS:
         logger.info(
             "Downloading of %d files failed. "
