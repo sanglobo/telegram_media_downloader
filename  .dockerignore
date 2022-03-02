@@ -1,0 +1,14 @@
+.git
+*.md
+tests
+.github
+.gitignore
+dev-requirements.txt
+Makefile
+venv
+.idea
+lock
+pylintrc
+LICENSE
+media_downloader.session
+codecov.yml

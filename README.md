@@ -57,8 +57,9 @@ The very first step requires you to obtain a valid Telegram API key (API id/hash
 ```yaml
 api_hash: your_api_hash
 api_id: your_api_id
-last_read_message_id: []
-ids_to_retry: []
+phone_number: your_phone_number
+last_read_message_id: {}
+ids_to_retry: {}
 media_types:
 - audio
 - document
@@ -73,14 +74,29 @@ file_formats:
   - epub
   video:
   - mp4
+download_directory: optional_directory_path
 ```
 
 - api_hash  - The api_hash you got from telegram apps
 - api_id - The api_id you got from telegram apps
+- phone_number - Your phone number you used to login to telegram
 - last_read_message_id - If it is the first time you are going to read the channel let it be `0` or if you have already used this script to download media it will have some numbers which are auto-updated after the scripts successful execution. Don't change it.
 - ids_to_retry - `Leave it as it is.` This is used by the downloader script to keep track of all skipped downloads so that it can be downloaded during the next execution of the script.
 - media_types - Type of media to download, you can update which type of media you want to download it can be one or any of the available types.
 - file_formats - File types to download for supported media types which are `audio`, `document` and `video`. Default format is `all`, downloads all files.
+- download_directory - Directory to download the media files. Default is the current directory.
+
+### Evniroment Variables
+
+Optional environment variables:
+
+```javascript  for color coding
+DOWNLOAD_DIRECTORY=<path_to_download_directory>
+API_ID=<api_id>
+API_HASH=<api_hash>
+PHONE_NUMBER=<phone_number>
+```
+These override the values in the config file.
 
 ## Execution
 ```sh

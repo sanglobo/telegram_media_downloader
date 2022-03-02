@@ -1,5 +1,7 @@
 api_hash: your_api_hash
 api_id: your_api_id
+chat_id:
+download_directory:
 file_formats:
   audio:
   - all
@@ -7,8 +9,8 @@ file_formats:
   - all
   video:
   - all
-ids_to_retry: []
-last_read_message_id: []
+ids_to_retry: {}
+last_read_message_id: {}
 media_types:
 - audio
 - photo
@@ -16,3 +18,4 @@ media_types:
 - document
 - voice
 - video_note
+phone_number:
