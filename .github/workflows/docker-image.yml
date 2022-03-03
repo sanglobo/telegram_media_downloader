@@ -22,8 +22,6 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/codel1417/telegram_media_downloader:latest
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
