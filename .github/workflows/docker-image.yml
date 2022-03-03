@@ -16,9 +16,6 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: .
           push: true
           tags: ghcr.io/codel1417/telegram_media_downloader:latest
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
