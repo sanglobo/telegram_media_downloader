@@ -361,7 +361,7 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
             chatname = re.sub(r'[^A-Za-z0-9 ]+', '', dialog.chat.title)
         if chat_id is not None and chat_id != "" and dialog.chat.id != chat_id:
             continue
-        chatname = chatname.replace(" ", "_")
+        chatname = str(chatname).replace(" ", "_")
 
 
         offset_id: int = 0
