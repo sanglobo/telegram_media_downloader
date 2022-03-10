@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime as dt
 from typing import List, Optional, Tuple, Union
 from dotenv import load_dotenv
@@ -9,8 +10,6 @@ import pyrogram
 import yaml
 import zc.lockfile
 from pyrogram import errors
-from pyrogram.raw import functions
-from pyrogram.raw.base.messages import Chats
 from pyrogram.types import Audio, Document, Photo, Video, VideoNote, Voice
 from rich.logging import RichHandler
 
@@ -167,6 +166,7 @@ async def download_media(
         media_types: List[str],
         file_formats: dict,
         config: dict,
+        chatname: str,
 ):
     """
     Download media from Telegram.
@@ -208,7 +208,7 @@ async def download_media(
                 _media = getattr(message, _type, None)
                 if _media is None:
                     continue
-                file_name, file_format = await _get_media_meta(_media, _type, str(message.chat.username))
+                file_name, file_format = await _get_media_meta(_media, _type, str(chatname))
                 if _can_download(_type, file_formats, file_format):
                     if _is_exist(file_name):
                         file_name = get_next_name(file_name)
@@ -272,6 +272,7 @@ async def process_messages(
         media_types: List[str],
         config: dict,
         file_formats: dict,
+        chatname: str,
 ) -> int:
     """
     Download media from Telegram.
@@ -304,7 +305,7 @@ async def process_messages(
     """
     message_ids = await asyncio.gather(
         *[
-            download_media(client, message, media_types, file_formats, config=config)
+            download_media(client, message, media_types, file_formats, config=config, chatname=chatname)
             for message in messages
         ]
     )
@@ -341,23 +342,33 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
     )
     await client.start()
     chat_id = config["chat_id"]
-    # TODO: re-add single chat support
-    channels: Chats = await client.send(
-        functions.messages.GetAllChats(except_ids=[])
-    )
+
     lastMessageIds: dict = config["last_read_message_id"]
     # force to dict
     lastMessageIds = dict(lastMessageIds)
 
-    for channel in channels.chats:
-        if channel.username is None:
+    dialogs = client.iter_dialogs(
+        limit=pagination_limit
+    )
+    async for dialog in dialogs:
+        # get chat name for folder
+        chatname = dialog.chat.id
+        if chat_id is not None and chat_id != "" and dialog.chat.type == "private":
             continue
+        if dialog.chat.username is not None:
+            chatname = dialog.chat.username
+        elif dialog.chat.title is not None:
+            chatname = re.sub(r'[^A-Za-z0-9 ]+', '', dialog.chat.title)
+        if chat_id is not None and chat_id != "" and dialog.chat.id != chat_id:
+            continue
+        chatname = chatname.replace(" ", "_")
+
 
         offset_id: int = 0
-        if str(channel.id) in lastMessageIds:
-            offset_id = lastMessageIds[str(channel.id)]
+        if str(dialog.chat.id) in lastMessageIds:
+            offset_id = lastMessageIds[str(dialog.chat.id)]
         messages_iter = client.iter_history(
-            chat_id=channel.username,
+            chat_id=dialog.chat.id,
             offset_id=offset_id,
             reverse=True,
         )
@@ -376,10 +387,11 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
                     media_types=config["media_types"],
                     file_formats=config["file_formats"],
                     config=config,
+                    chatname=chatname,
                 )
                 pagination_count = 0
                 messages_list = [message]
-                lastMessageIds.update({str(channel.id): last_read_message_id})
+                lastMessageIds.update({str(dialog.chat.id): last_read_message_id})
                 config["last_read_message_id"] = lastMessageIds
                 update_config(config)
         if messages_list:
@@ -389,8 +401,9 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
                 media_types=config["media_types"],
                 file_formats=config["file_formats"],
                 config=config,
+                chatname=chatname,
             )
-            lastMessageIds.update({str(channel.id): last_read_message_id})
+            lastMessageIds.update({str(dialog.chat.id): last_read_message_id})
 
     await client.stop()
     config["last_read_message_id"] = lastMessageIds
@@ -422,7 +435,7 @@ def main():
         )
     '''
     update_config(updated_config)
-    check_for_updates()
+    #check_for_updates()
 
 
 if __name__ == "__main__":
