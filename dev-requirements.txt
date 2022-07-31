@@ -1,5 +1,5 @@
 mock==4.0.3
-mypy==0.942
+mypy==0.971
 pylint==2.14.5
 pytest==7.1.2
 pytest-cov==3.0.0
