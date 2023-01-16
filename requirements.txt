@@ -1,6 +1,6 @@
 Pyrogram==2.0.97
 PyYAML==6.0
-rich==13.0.1
+rich==13.1.0
 TgCrypto==1.2.5
 zc.lockfile==2.0
 python-dotenv==0.21.0
