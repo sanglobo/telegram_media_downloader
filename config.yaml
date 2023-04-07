@@ -1,6 +1,6 @@
-api_hash: your_api_hash
-api_id: your_api_id
-chat_id:
+api_hash: "7dd9974c713787410beae4a295cc1e2d"
+api_id: 27885485
+chat_id: "1900357579"
 download_directory:
 file_formats:
   audio:
@@ -18,4 +18,4 @@ media_types:
 - document
 - voice
 - video_note
-phone_number:
+phone_number: 5577999132829
