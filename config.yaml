@@ -18,4 +18,4 @@ media_types:
 - document
 - voice
 - video_note
-phone_number: 5577999132829
+phone_number: int("+5577999132829")
